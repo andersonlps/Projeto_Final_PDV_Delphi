@@ -1,0 +1,409 @@
+﻿unit TelaCliente;
+
+// VIEW: tela de clientes com MASTER-DETAIL (Cliente -> Enderecos).
+// Aba Consulta: lista de clientes.
+// Aba Cadastro: sub-aba "Dados" (master) e sub-aba "Enderecos" (detail).
+// Os enderecos ficam na lista em memoria do cliente e so vao ao banco
+// quando o usuario clica em "Salvar cadastro" (tudo junto, em transacao).
+// A tela NAO tem SQL: ela so conhece o Controller.
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
+  System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
+  Vcl.StdCtrls, Vcl.ComCtrls, Vcl.ExtCtrls, Generics.Collections,
+  Model.Cliente, Model.Endereco, Controller.Cliente;
+
+type
+  TfrmTelaCliente = class(TForm)
+    pcCliente: TPageControl;
+    tsConsulta: TTabSheet;
+    tsCadastro: TTabSheet;
+    // --- aba Consulta ---
+    pnlConsulta: TPanel;
+    lblPesquisa: TLabel;
+    edtPesquisa: TEdit;
+    btnNovo: TButton;
+    btnEditar: TButton;
+    btnExcluir: TButton;
+    lvClientes: TListView;
+    // --- aba Cadastro ---
+    pnlRodapeCadastro: TPanel;
+    btnSalvar: TButton;
+    btnCancelar: TButton;
+    pcDetalhes: TPageControl;
+    tsDados: TTabSheet;
+    tsEnderecos: TTabSheet;
+    // --- sub-aba Dados (MASTER) ---
+    lblNome: TLabel;
+    lblCpf: TLabel;
+    lblTelefone: TLabel;
+    lblEmail: TLabel;
+    edtNome: TEdit;
+    edtCpf: TEdit;
+    edtTelefone: TEdit;
+    edtEmail: TEdit;
+    // --- sub-aba Enderecos (DETAIL) ---
+    pnlEnderecoCampos: TPanel;
+    lblCep: TLabel;
+    lblLogradouro: TLabel;
+    lblNumero: TLabel;
+    lblBairro: TLabel;
+    lblCidade: TLabel;
+    lblUf: TLabel;
+    edtCep: TEdit;
+    edtLogradouro: TEdit;
+    edtNumero: TEdit;
+    edtBairro: TEdit;
+    edtCidade: TEdit;
+    edtUf: TEdit;
+    btnEnderecoAdicionar: TButton;
+    btnEnderecoAtualizar: TButton;
+    btnEnderecoRemover: TButton;
+    lvEnderecos: TListView;
+    procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
+    procedure edtPesquisaChange(Sender: TObject);
+    procedure btnNovoClick(Sender: TObject);
+    procedure btnEditarClick(Sender: TObject);
+    procedure btnExcluirClick(Sender: TObject);
+    procedure lvClientesDblClick(Sender: TObject);
+    procedure btnSalvarClick(Sender: TObject);
+    procedure btnCancelarClick(Sender: TObject);
+    procedure btnEnderecoAdicionarClick(Sender: TObject);
+    procedure btnEnderecoAtualizarClick(Sender: TObject);
+    procedure btnEnderecoRemoverClick(Sender: TObject);
+    procedure lvEnderecosSelectItem(Sender: TObject; Item: TListItem;
+      Selected: Boolean);
+  private
+    FController: TClienteController;
+    FClientes: TObjectList<TClienteModel>; // clientes mostrados na consulta
+    FCliente: TClienteModel;               // cliente em edicao (uma COPIA)
+    FEnderecoSelecionado: TEnderecoModel;  // endereco escolhido na lista
+
+    procedure CarregarClientes;
+    procedure TrocarCliente(novo: TClienteModel);
+    procedure PreencherTela;
+    procedure LerCamposCliente;
+    procedure CarregarEnderecos;
+    procedure LimparCamposEndereco;
+    procedure LerCamposEndereco(endereco: TEnderecoModel);
+  end;
+
+implementation
+
+{$R *.dfm}
+
+uses
+  Factory.Cliente,
+  Utils.Formato;
+
+procedure TfrmTelaCliente.FormCreate(Sender: TObject);
+begin
+  FController := TClienteFactory.CriarController;
+  FCliente := TClienteModel.Create;
+  pcCliente.ActivePage := tsConsulta;
+  PreencherTela;
+  CarregarClientes;
+end;
+
+procedure TfrmTelaCliente.FormDestroy(Sender: TObject);
+begin
+  FCliente.Free;
+  FClientes.Free;
+  FController.Free;
+end;
+
+// =================== CONSULTA (lista de clientes) ===================
+
+procedure TfrmTelaCliente.CarregarClientes;
+begin
+  lvClientes.Items.BeginUpdate;
+  try
+    lvClientes.Items.Clear;
+    FreeAndNil(FClientes);
+
+    try
+      FClientes := FController.ObterClientes(edtPesquisa.Text);
+    except
+      on E: Exception do
+      begin
+        ShowMessage('Erro: ' + E.Message);
+        Exit;
+      end;
+    end;
+
+    for var cliente in FClientes do
+    begin
+      var item := lvClientes.Items.Add;
+      item.Caption := IntToStr(cliente.Id);
+      item.SubItems.Add(cliente.Nome);
+      item.SubItems.Add(FormatarCpf(cliente.Cpf));
+      item.SubItems.Add(cliente.Telefone);
+      item.SubItems.Add(cliente.Email);
+      item.Data := cliente; // guarda o objeto na linha da lista
+    end;
+  finally
+    lvClientes.Items.EndUpdate;
+  end;
+end;
+
+procedure TfrmTelaCliente.edtPesquisaChange(Sender: TObject);
+begin
+  CarregarClientes;
+end;
+
+// Troca o cliente em edicao (libera o antigo).
+procedure TfrmTelaCliente.TrocarCliente(novo: TClienteModel);
+begin
+  lvEnderecos.Items.Clear; // a lista nao pode apontar para objetos liberados
+  FEnderecoSelecionado := nil;
+  FCliente.Free;
+  FCliente := novo;
+end;
+
+procedure TfrmTelaCliente.btnNovoClick(Sender: TObject);
+begin
+  TrocarCliente(TClienteModel.Create);
+  PreencherTela;
+  pcCliente.ActivePage := tsCadastro;
+  pcDetalhes.ActivePage := tsDados;
+  edtNome.SetFocus;
+end;
+
+procedure TfrmTelaCliente.btnEditarClick(Sender: TObject);
+begin
+  if (lvClientes.Selected = nil) or (lvClientes.Selected.Data = nil) then
+  begin
+    ShowMessage('Selecione um cliente na lista.');
+    Exit;
+  end;
+
+  // Trabalha numa COPIA: se o usuario cancelar, nada muda.
+  TrocarCliente(TClienteModel(lvClientes.Selected.Data).Clonar);
+  PreencherTela;
+  pcCliente.ActivePage := tsCadastro;
+  pcDetalhes.ActivePage := tsDados;
+  edtNome.SetFocus;
+end;
+
+procedure TfrmTelaCliente.lvClientesDblClick(Sender: TObject);
+begin
+  btnEditarClick(Sender); // duplo clique = Editar
+end;
+
+procedure TfrmTelaCliente.btnExcluirClick(Sender: TObject);
+begin
+  if (lvClientes.Selected = nil) or (lvClientes.Selected.Data = nil) then
+  begin
+    ShowMessage('Selecione um cliente na lista.');
+    Exit;
+  end;
+
+  if MessageDlg('Deseja realmente excluir este cliente e todos os ' +
+    'endereços dele?', mtConfirmation, [mbYes, mbNo], 0) <> mrYes then
+    Exit;
+
+  try
+    FController.Excluir(TClienteModel(lvClientes.Selected.Data).Id);
+  except
+    on E: Exception do
+    begin
+      ShowMessage(E.Message);
+      Exit;
+    end;
+  end;
+
+  CarregarClientes;
+end;
+
+// =================== CADASTRO: dados do cliente (MASTER) ===================
+
+procedure TfrmTelaCliente.PreencherTela;
+begin
+  edtNome.Text := FCliente.Nome;
+  edtCpf.Text := FormatarCpf(FCliente.Cpf);
+  edtTelefone.Text := FCliente.Telefone;
+  edtEmail.Text := FCliente.Email;
+  CarregarEnderecos;
+  LimparCamposEndereco;
+end;
+
+procedure TfrmTelaCliente.LerCamposCliente;
+begin
+  FCliente.Nome := edtNome.Text;
+  FCliente.Cpf := edtCpf.Text;
+  FCliente.Telefone := edtTelefone.Text;
+  FCliente.Email := edtEmail.Text;
+end;
+
+procedure TfrmTelaCliente.btnSalvarClick(Sender: TObject);
+begin
+  LerCamposCliente;
+
+  try
+    // Valida e grava o cliente E os enderecos juntos.
+    FController.Salvar(FCliente);
+  except
+    on E: Exception do
+    begin
+      ShowMessage(E.Message);
+      Exit;
+    end;
+  end;
+
+  ShowMessage('Cadastro salvo com sucesso.');
+  TrocarCliente(TClienteModel.Create);
+  PreencherTela;
+  CarregarClientes;
+  pcCliente.ActivePage := tsConsulta;
+end;
+
+procedure TfrmTelaCliente.btnCancelarClick(Sender: TObject);
+begin
+  TrocarCliente(TClienteModel.Create);
+  PreencherTela;
+  pcCliente.ActivePage := tsConsulta;
+end;
+
+// =================== CADASTRO: enderecos (DETAIL) ===================
+
+procedure TfrmTelaCliente.CarregarEnderecos;
+begin
+  lvEnderecos.Items.BeginUpdate;
+  try
+    lvEnderecos.Items.Clear;
+    FEnderecoSelecionado := nil;
+
+    for var endereco in FCliente.Enderecos do
+    begin
+      var item := lvEnderecos.Items.Add;
+      item.Caption := FormatarCep(endereco.Cep);
+      item.SubItems.Add(endereco.Logradouro);
+      item.SubItems.Add(endereco.Numero);
+      item.SubItems.Add(endereco.Bairro);
+      item.SubItems.Add(endereco.Cidade);
+      item.SubItems.Add(endereco.Uf);
+      item.Data := endereco;
+    end;
+  finally
+    lvEnderecos.Items.EndUpdate;
+  end;
+
+  tsEnderecos.Caption := Format('Endereços (%d)', [FCliente.Enderecos.Count]);
+end;
+
+procedure TfrmTelaCliente.LimparCamposEndereco;
+begin
+  FEnderecoSelecionado := nil;
+  edtCep.Clear;
+  edtLogradouro.Clear;
+  edtNumero.Clear;
+  edtBairro.Clear;
+  edtCidade.Clear;
+  edtUf.Clear;
+end;
+
+procedure TfrmTelaCliente.LerCamposEndereco(endereco: TEnderecoModel);
+begin
+  endereco.Cep := edtCep.Text;
+  endereco.Logradouro := edtLogradouro.Text;
+  endereco.Numero := edtNumero.Text;
+  endereco.Bairro := edtBairro.Text;
+  endereco.Cidade := edtCidade.Text;
+  endereco.Uf := edtUf.Text;
+end;
+
+procedure TfrmTelaCliente.lvEnderecosSelectItem(Sender: TObject;
+  Item: TListItem; Selected: Boolean);
+begin
+  if not Selected then
+    Exit;
+
+  if Assigned(Item.Data) then
+  begin
+    // Mostra o endereco escolhido nos campos, para editar.
+    FEnderecoSelecionado := TEnderecoModel(Item.Data);
+    edtCep.Text := FEnderecoSelecionado.Cep;
+    edtLogradouro.Text := FEnderecoSelecionado.Logradouro;
+    edtNumero.Text := FEnderecoSelecionado.Numero;
+    edtBairro.Text := FEnderecoSelecionado.Bairro;
+    edtCidade.Text := FEnderecoSelecionado.Cidade;
+    edtUf.Text := FEnderecoSelecionado.Uf;
+  end;
+end;
+
+procedure TfrmTelaCliente.btnEnderecoAdicionarClick(Sender: TObject);
+begin
+  var endereco := TEnderecoModel.Create;
+  try
+    LerCamposEndereco(endereco);
+    FController.ValidarEndereco(endereco);
+  except
+    on E: Exception do
+    begin
+      endereco.Free;
+      ShowMessage(E.Message);
+      Exit;
+    end;
+  end;
+
+  // O cliente passa a ser dono do endereco (so grava no banco ao Salvar).
+  FCliente.AdicionarEndereco(endereco);
+  CarregarEnderecos;
+  LimparCamposEndereco;
+  edtCep.SetFocus;
+end;
+
+procedure TfrmTelaCliente.btnEnderecoAtualizarClick(Sender: TObject);
+begin
+  if FEnderecoSelecionado = nil then
+  begin
+    ShowMessage('Selecione um endereço na lista.');
+    Exit;
+  end;
+
+  var temporario := TEnderecoModel.Create;
+  try
+    try
+      LerCamposEndereco(temporario);
+      FController.ValidarEndereco(temporario);
+    except
+      on E: Exception do
+      begin
+        ShowMessage(E.Message);
+        Exit;
+      end;
+    end;
+
+    FEnderecoSelecionado.Copiar(temporario);
+  finally
+    temporario.Free;
+  end;
+
+  CarregarEnderecos;
+  LimparCamposEndereco;
+end;
+
+procedure TfrmTelaCliente.btnEnderecoRemoverClick(Sender: TObject);
+begin
+  if FEnderecoSelecionado = nil then
+  begin
+    ShowMessage('Selecione um endereço na lista.');
+    Exit;
+  end;
+
+  if MessageDlg('Deseja remover este endereço?', mtConfirmation,
+    [mbYes, mbNo], 0) <> mrYes then
+    Exit;
+
+  lvEnderecos.Items.Clear;
+  FCliente.RemoverEndereco(FEnderecoSelecionado); // remove e libera
+  FEnderecoSelecionado := nil;
+
+  CarregarEnderecos;
+  LimparCamposEndereco;
+end;
+
+end.

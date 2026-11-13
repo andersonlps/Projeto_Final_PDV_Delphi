@@ -1,0 +1,34 @@
+unit TelaPrincipal;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls;
+
+type
+  TfrmTelaPrincipal = class(TForm)
+    pnlHeader: TPanel;
+    pnlMenu: TPanel;
+    pnlFooter: TPanel;
+    pnlLogo: TPanel;
+    pnlInfo: TPanel;
+    btnProdutos: TButton;
+    btnClientes: TButton;
+    btnVendas: TButton;
+    btnSair: TButton;
+    pnlConteudo: TPanel;
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  frmTelaPrincipal: TfrmTelaPrincipal;
+
+implementation
+
+{$R *.dfm}
+
+end.

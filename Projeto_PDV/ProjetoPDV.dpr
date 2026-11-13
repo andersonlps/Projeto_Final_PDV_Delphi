@@ -1,0 +1,38 @@
+program ProjetoPDV;
+
+uses
+  Vcl.Forms,
+  TelaPrincipal in 'View\TelaPrincipal.pas' {frmTelaPrincipal},
+  Model.Produto in 'Model\Model.Produto.pas',
+  Model.Cliente in 'Model\Model.Cliente.pas',
+  DataModulePrincipal in 'DataModule\DataModulePrincipal.pas' {dtmPrincipal: TDataModule},
+  Utils.Formato in 'Utils\Utils.Formato.pas',
+  Repository.Produto in 'Repository\Repository.Produto.pas',
+  Repository.Cliente in 'Repository\Repository.Cliente.pas',
+  Service.Produto in 'Service\Service.Produto.pas',
+  Service.Cliente in 'Service\Service.Cliente.pas',
+  Controller.Produto in 'Controller\Controller.Produto.pas',
+  Controller.Cliente in 'Controller\Controller.Cliente.pas',
+  Factory.Produto in 'Factory\Factory.Produto.pas',
+  Factory.Cliente in 'Factory\Factory.Cliente.pas',
+  TelaProduto in 'View\TelaProduto.pas' {frmTelaProduto},
+  TelaCliente in 'View\TelaCliente.pas' {frmTelaCliente},
+  Model.Endereco in 'Model\Model.Endereco.pas',
+  Model.Venda in 'Model\Model.Venda.pas',
+  Repository.Venda in 'Repository\Repository.Venda.pas',
+  Service.Venda in 'Service\Service.Venda.pas',
+  Controller.Venda in 'Controller\Controller.Venda.pas',
+  Factory.Venda in 'Factory\Factory.Venda.pas',
+  Model.ItemVenda in 'Model\Model.ItemVenda.pas',
+  TelaVenda in 'View\TelaVenda.pas' {frmTelaVenda},
+  Service.Endereco in 'Service\Service.Endereco.pas';
+
+{$R *.res}
+
+begin
+  Application.Initialize;
+  Application.MainFormOnTaskbar := True;
+  Application.CreateForm(TfrmTelaPrincipal, frmTelaPrincipal);
+  Application.CreateForm(TdtmPrincipal, dtmPrincipal);
+  Application.Run;
+end.

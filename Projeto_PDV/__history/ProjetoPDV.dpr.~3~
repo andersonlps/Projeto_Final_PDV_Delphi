@@ -1,0 +1,17 @@
+program ProjetoPDV;
+
+uses
+  Vcl.Forms,
+  TelaPrincipal in 'View\TelaPrincipal.pas' {frmTelaPrincipal},
+  Model.Produto in 'Model\Model.Produto.pas',
+  Model.Cliente in 'Model\Model.Cliente.pas',
+  Model.Endereco in 'Model\Model.Endereco.pas';
+
+{$R *.res}
+
+begin
+  Application.Initialize;
+  Application.MainFormOnTaskbar := True;
+  Application.CreateForm(TfrmTelaPrincipal, frmTelaPrincipal);
+  Application.Run;
+end.

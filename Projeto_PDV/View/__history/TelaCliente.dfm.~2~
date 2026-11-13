@@ -1,0 +1,335 @@
+object frmTelaCliente: TfrmTelaCliente
+  Left = 0
+  Top = 0
+  Caption = 'Cadastro de Clientes'
+  ClientHeight = 480
+  ClientWidth = 700
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -12
+  Font.Name = 'Segoe UI'
+  Font.Style = []
+  Position = poScreenCenter
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  TextHeight = 15
+  object pcCliente: TPageControl
+    Left = 0
+    Top = 0
+    Width = 700
+    Height = 480
+    ActivePage = tsCadastro
+    Align = alClient
+    TabOrder = 0
+    object tsConsulta: TTabSheet
+      Caption = 'Consulta'
+      object pnlConsulta: TPanel
+        Left = 0
+        Top = 0
+        Width = 692
+        Height = 64
+        Align = alTop
+        BevelOuter = bvNone
+        ShowCaption = False
+        TabOrder = 0
+        DesignSize = (
+          692
+          64)
+        object lblPesquisa: TLabel
+          Left = 16
+          Top = 8
+          Width = 146
+          Height = 15
+          Caption = 'Pesquisar por nome ou CPF'
+        end
+        object edtPesquisa: TEdit
+          Left = 16
+          Top = 29
+          Width = 390
+          Height = 23
+          Anchors = [akLeft, akTop, akRight]
+          TabOrder = 0
+          TextHint = 'digite para filtrar a lista'
+          OnChange = edtPesquisaChange
+        end
+        object btnNovo: TButton
+          Left = 422
+          Top = 27
+          Width = 80
+          Height = 27
+          Anchors = [akTop, akRight]
+          Caption = 'Novo'
+          TabOrder = 1
+          OnClick = btnNovoClick
+        end
+        object btnEditar: TButton
+          Left = 508
+          Top = 27
+          Width = 80
+          Height = 27
+          Anchors = [akTop, akRight]
+          Caption = 'Editar'
+          TabOrder = 2
+          OnClick = btnEditarClick
+        end
+        object btnExcluir: TButton
+          Left = 594
+          Top = 27
+          Width = 80
+          Height = 27
+          Anchors = [akTop, akRight]
+          Caption = 'Excluir'
+          TabOrder = 3
+          OnClick = btnExcluirClick
+        end
+      end
+      object lvClientes: TListView
+        AlignWithMargins = True
+        Left = 16
+        Top = 64
+        Width = 660
+        Height = 370
+        Margins.Left = 16
+        Margins.Top = 0
+        Margins.Right = 16
+        Margins.Bottom = 16
+        Align = alClient
+        Columns = <
+          item
+            Caption = 'C'#243'digo'
+            Width = 60
+          end
+          item
+            Caption = 'Nome'
+            Width = 230
+          end
+          item
+            Caption = 'CPF'
+            Width = 110
+          end
+          item
+            Caption = 'Telefone'
+            Width = 110
+          end
+          item
+            Caption = 'E-mail'
+            Width = 130
+          end>
+        ReadOnly = True
+        RowSelect = True
+        TabOrder = 1
+        ViewStyle = vsReport
+        OnDblClick = lvClientesDblClick
+      end
+    end
+    object tsCadastro: TTabSheet
+      Caption = 'Cadastro'
+      ImageIndex = 1
+      object pnlRodapeCadastro: TPanel
+        Left = 0
+        Top = 398
+        Width = 692
+        Height = 52
+        Align = alBottom
+        BevelOuter = bvNone
+        ShowCaption = False
+        TabOrder = 1
+        object btnSalvar: TButton
+          Left = 16
+          Top = 12
+          Width = 130
+          Height = 28
+          Caption = 'Salvar cadastro'
+          TabOrder = 0
+          OnClick = btnSalvarClick
+        end
+        object btnCancelar: TButton
+          Left = 154
+          Top = 12
+          Width = 90
+          Height = 28
+          Caption = 'Cancelar'
+          TabOrder = 1
+          OnClick = btnCancelarClick
+        end
+      end
+      object pcDetalhes: TPageControl
+        AlignWithMargins = True
+        Left = 16
+        Top = 16
+        Width = 660
+        Height = 382
+        Margins.Left = 16
+        Margins.Top = 16
+        Margins.Right = 16
+        Margins.Bottom = 0
+        ActivePage = tsDados
+        Align = alClient
+        TabOrder = 0
+        object tsDados: TTabSheet
+          Caption = 'Dados'
+          DesignSize = (
+            652
+            352)
+          object lblNome: TLabel
+            Left = 16
+            Top = 16
+            Width = 33
+            Height = 15
+            Caption = 'Nome'
+          end
+          object lblCpf: TLabel
+            Left = 482
+            Top = 16
+            Width = 21
+            Height = 15
+            Anchors = [akTop, akRight]
+            Caption = 'CPF'
+          end
+          object lblTelefone: TLabel
+            Left = 16
+            Top = 72
+            Width = 44
+            Height = 15
+            Caption = 'Telefone'
+          end
+          object lblEmail: TLabel
+            Left = 192
+            Top = 72
+            Width = 34
+            Height = 15
+            Caption = 'E-mail'
+          end
+          object lblCep: TLabel
+            Left = 16
+            Top = 123
+            Width = 21
+            Height = 15
+            Caption = 'CEP'
+          end
+          object Label2: TLabel
+            Left = 272
+            Top = 123
+            Width = 62
+            Height = 15
+            Caption = 'Logradouro'
+          end
+          object Label3: TLabel
+            Left = 160
+            Top = 187
+            Width = 44
+            Height = 15
+            Caption = 'Numero'
+          end
+          object Label4: TLabel
+            Left = 419
+            Top = 123
+            Width = 31
+            Height = 15
+            Caption = 'Bairro'
+          end
+          object lblCidade: TLabel
+            Left = 16
+            Top = 187
+            Width = 37
+            Height = 15
+            Caption = 'Cidade'
+          end
+          object lblUf: TLabel
+            Left = 272
+            Top = 187
+            Width = 14
+            Height = 15
+            Caption = 'UF'
+          end
+          object edtNome: TEdit
+            Left = 16
+            Top = 35
+            Width = 450
+            Height = 23
+            Anchors = [akLeft, akTop, akRight]
+            MaxLength = 100
+            TabOrder = 0
+          end
+          object edtCpf: TEdit
+            Left = 482
+            Top = 35
+            Width = 150
+            Height = 23
+            Anchors = [akTop, akRight]
+            MaxLength = 14
+            TabOrder = 1
+          end
+          object edtTelefone: TEdit
+            Left = 16
+            Top = 91
+            Width = 160
+            Height = 23
+            MaxLength = 20
+            TabOrder = 2
+          end
+          object edtEmail: TEdit
+            Left = 192
+            Top = 91
+            Width = 440
+            Height = 23
+            Anchors = [akLeft, akTop, akRight]
+            MaxLength = 100
+            TabOrder = 3
+          end
+          object edtCep: TEdit
+            Left = 16
+            Top = 144
+            Width = 121
+            Height = 23
+            TabOrder = 4
+          end
+          object edtLogradouro: TEdit
+            Left = 272
+            Top = 144
+            Width = 121
+            Height = 23
+            TabOrder = 5
+          end
+          object edtNumero: TEdit
+            Left = 160
+            Top = 208
+            Width = 75
+            Height = 23
+            TabOrder = 6
+          end
+          object edtBairro: TEdit
+            Left = 419
+            Top = 144
+            Width = 121
+            Height = 23
+            TabOrder = 7
+          end
+          object edtCidade: TEdit
+            Left = 16
+            Top = 208
+            Width = 121
+            Height = 23
+            TabOrder = 8
+          end
+          object edtUf: TEdit
+            Left = 272
+            Top = 208
+            Width = 121
+            Height = 23
+            TabOrder = 9
+          end
+          object btnBuscarCep: TButton
+            Left = 160
+            Top = 143
+            Width = 75
+            Height = 25
+            Caption = 'Buscar CEP'
+            TabOrder = 10
+          end
+        end
+      end
+    end
+  end
+end

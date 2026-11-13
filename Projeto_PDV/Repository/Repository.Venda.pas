@@ -1,0 +1,309 @@
+﻿unit Repository.Venda;
+
+// REPOSITORY da venda (TFDTable do DataModule).
+// Fechar a venda = gravar venda + itens + baixar o estoque, tudo numa
+// TRANSACAO: ou grava tudo, ou nao grava nada.
+// Cancelar a venda = devolver o estoque e apagar venda + itens.
+
+interface
+
+uses
+  Data.DB,
+  DataModulePrincipal,
+  Generics.Collections,
+  Model.Venda,
+  Model.ItemVenda;
+
+type
+  IVendaRepository = interface
+    function ObterVendas: TObjectList<TVendaModel>;
+    procedure Salvar(venda: TVendaModel);
+    procedure Excluir(id: Integer);
+  end;
+
+  TVendaRepository = class(TInterfacedObject, IVendaRepository)
+  private
+    function NomeDoCliente(idCliente: Integer): string;
+    function DescricaoDoProduto(idProduto: Integer): string;
+    procedure LerItens(venda: TVendaModel);
+    procedure BaixarEstoque(idProduto, quantidade: Integer);
+    procedure DevolverEstoque(idProduto, quantidade: Integer);
+    procedure SalvarItem(idVenda: Integer; item: TItemVendaModel);
+    procedure ExcluirItensDaVenda(idVenda: Integer);
+    procedure DesfazerPendencias;
+    procedure AtualizarTabelas;
+  public
+    function ObterVendas: TObjectList<TVendaModel>;
+    procedure Salvar(venda: TVendaModel);
+    procedure Excluir(id: Integer);
+  end;
+
+implementation
+
+uses
+  System.SysUtils;
+
+{ TVendaRepository }
+
+function TVendaRepository.NomeDoCliente(idCliente: Integer): string;
+begin
+  var tabela := dtmPrincipal.fdTableCliente;
+
+  if not tabela.Active then
+    tabela.Open;
+
+  tabela.Filtered := False;
+
+  if tabela.Locate('id', idCliente, []) then
+    Result := tabela.FieldByName('nome').AsString
+  else
+    Result := '';
+end;
+
+function TVendaRepository.DescricaoDoProduto(idProduto: Integer): string;
+begin
+  var tabela := dtmPrincipal.fdTableProduto;
+
+  if not tabela.Active then
+    tabela.Open;
+
+  tabela.Filtered := False;
+
+  if tabela.Locate('id', idProduto, []) then
+    Result := tabela.FieldByName('descricao').AsString
+  else
+    Result := '';
+end;
+
+function TVendaRepository.ObterVendas: TObjectList<TVendaModel>;
+begin
+  Result := TObjectList<TVendaModel>.Create;
+  try
+    var tabelaVenda := dtmPrincipal.fdTableVenda;
+    var tabelaItem := dtmPrincipal.fdTableItemVenda;
+
+    if not tabelaVenda.Active then
+      tabelaVenda.Open;
+    if not tabelaItem.Active then
+      tabelaItem.Open;
+
+    tabelaVenda.First;
+    while not tabelaVenda.Eof do
+    begin
+      var venda := TVendaModel.Create;
+      Result.Insert(0, venda); // a venda mais recente fica no topo da lista
+
+      venda.Id := tabelaVenda.FieldByName('id').AsInteger;
+      venda.IdCliente := tabelaVenda.FieldByName('id_cliente').AsInteger;
+      venda.DataVenda := tabelaVenda.FieldByName('data_venda').AsDateTime;
+      venda.FormaPagamento := tabelaVenda.FieldByName('forma_pagamento').AsString;
+      venda.NomeCliente := NomeDoCliente(venda.IdCliente);
+
+      LerItens(venda);
+
+      tabelaVenda.Next;
+    end;
+  except
+    Result.Free;
+    raise;
+  end;
+end;
+
+procedure TVendaRepository.LerItens(venda: TVendaModel);
+begin
+  // A tabela de itens ja mostra so os da venda atual (MasterSource).
+  // A conferencia do id_venda e uma seguranca extra.
+  var tabela := dtmPrincipal.fdTableItemVenda;
+
+  if not tabela.Active then
+    tabela.Open;
+
+  tabela.First;
+  while not tabela.Eof do
+  begin
+    if tabela.FieldByName('id_venda').AsInteger = venda.Id then
+    begin
+      var item := TItemVendaModel.Create;
+      venda.Itens.Add(item);
+
+      item.Id := tabela.FieldByName('id').AsInteger;
+      item.IdVenda := venda.Id;
+      item.IdProduto := tabela.FieldByName('id_produto').AsInteger;
+      item.DescricaoProduto := DescricaoDoProduto(item.IdProduto);
+      item.Quantidade := tabela.FieldByName('quantidade').AsInteger;
+      item.PrecoUnitario := tabela.FieldByName('preco_unitario').AsCurrency;
+    end;
+    tabela.Next;
+  end;
+end;
+
+procedure TVendaRepository.BaixarEstoque(idProduto, quantidade: Integer);
+begin
+  var tabela := dtmPrincipal.fdTableProduto;
+
+  if not tabela.Active then
+    tabela.Open;
+
+  tabela.Filtered := False;
+
+  if not tabela.Locate('id', idProduto, []) then
+    raise Exception.Create('Produto não encontrado.');
+
+  var atual := tabela.FieldByName('estoque').AsInteger;
+  if atual < quantidade then
+    raise Exception.CreateFmt('Estoque insuficiente para "%s". Disponível: %d.',
+      [tabela.FieldByName('descricao').AsString, atual]);
+
+  tabela.Edit;
+  tabela.FieldByName('estoque').AsInteger := atual - quantidade;
+  tabela.Post;
+end;
+
+procedure TVendaRepository.DevolverEstoque(idProduto, quantidade: Integer);
+begin
+  var tabela := dtmPrincipal.fdTableProduto;
+
+  if not tabela.Active then
+    tabela.Open;
+
+  tabela.Filtered := False;
+
+  if tabela.Locate('id', idProduto, []) then
+  begin
+    tabela.Edit;
+    tabela.FieldByName('estoque').AsInteger :=
+      tabela.FieldByName('estoque').AsInteger + quantidade;
+    tabela.Post;
+  end;
+end;
+
+procedure TVendaRepository.SalvarItem(idVenda: Integer; item: TItemVendaModel);
+begin
+  var tabela := dtmPrincipal.fdTableItemVenda;
+
+  if not tabela.Active then
+    tabela.Open;
+
+  tabela.Append;
+  tabela.FieldByName('id_venda').AsInteger := idVenda;
+  tabela.FieldByName('id_produto').AsInteger := item.IdProduto;
+  tabela.FieldByName('quantidade').AsInteger := item.Quantidade;
+  tabela.FieldByName('preco_unitario').AsCurrency := item.PrecoUnitario;
+  tabela.FieldByName('subtotal').AsCurrency := item.Subtotal;
+  tabela.Post;
+
+  item.Id := dtmPrincipal.IdGerado(tabela);
+  item.IdVenda := idVenda;
+end;
+
+procedure TVendaRepository.Salvar(venda: TVendaModel);
+begin
+  var tabela := dtmPrincipal.fdTableVenda;
+  var conexao := dtmPrincipal.fdConnection;
+
+  if not tabela.Active then
+    tabela.Open;
+
+  conexao.StartTransaction;
+  try
+    tabela.Append;
+    tabela.FieldByName('id_cliente').AsInteger := venda.IdCliente;
+    tabela.FieldByName('data_venda').AsDateTime := venda.DataVenda;
+    tabela.FieldByName('forma_pagamento').AsString := venda.FormaPagamento;
+    tabela.FieldByName('total').AsCurrency := venda.Total;
+    tabela.Post;
+
+    venda.Id := dtmPrincipal.IdGerado(tabela);
+
+    // Garante o cursor na venda salva (os itens acompanham o master).
+    tabela.Locate('id', venda.Id, []);
+
+    for var item in venda.Itens do
+    begin
+      BaixarEstoque(item.IdProduto, item.Quantidade);
+      SalvarItem(venda.Id, item);
+    end;
+
+    conexao.Commit;
+  except
+    DesfazerPendencias;
+    if conexao.InTransaction then
+      conexao.Rollback;
+    AtualizarTabelas;
+    raise;
+  end;
+end;
+
+procedure TVendaRepository.ExcluirItensDaVenda(idVenda: Integer);
+begin
+  var tabela := dtmPrincipal.fdTableItemVenda;
+
+  if not tabela.Active then
+    tabela.Open;
+
+  tabela.First;
+  while not tabela.Eof do
+  begin
+    if tabela.FieldByName('id_venda').AsInteger = idVenda then
+    begin
+      DevolverEstoque(tabela.FieldByName('id_produto').AsInteger,
+        tabela.FieldByName('quantidade').AsInteger);
+      tabela.Delete; // apos Delete, o cursor ja vai para o proximo registro
+    end
+    else
+      tabela.Next;
+  end;
+end;
+
+procedure TVendaRepository.Excluir(id: Integer);
+begin
+  var tabela := dtmPrincipal.fdTableVenda;
+  var conexao := dtmPrincipal.fdConnection;
+
+  if not tabela.Active then
+    tabela.Open;
+
+  if not tabela.Locate('id', id, []) then
+    Exit;
+
+  conexao.StartTransaction;
+  try
+    ExcluirItensDaVenda(id);
+    tabela.Locate('id', id, []);
+    tabela.Delete;
+    conexao.Commit;
+  except
+    DesfazerPendencias;
+    if conexao.InTransaction then
+      conexao.Rollback;
+    AtualizarTabelas;
+    raise;
+  end;
+end;
+
+procedure TVendaRepository.DesfazerPendencias;
+begin
+  if dtmPrincipal.fdTableItemVenda.Active and (dtmPrincipal.fdTableItemVenda.State in dsEditModes) then
+    dtmPrincipal.fdTableItemVenda.Cancel;
+  if dtmPrincipal.fdTableVenda.Active and (dtmPrincipal.fdTableVenda.State in dsEditModes) then
+    dtmPrincipal.fdTableVenda.Cancel;
+  if dtmPrincipal.fdTableProduto.Active and (dtmPrincipal.fdTableProduto.State in dsEditModes) then
+    dtmPrincipal.fdTableProduto.Cancel;
+end;
+
+procedure TVendaRepository.AtualizarTabelas;
+begin
+  // Depois de um Rollback, recarrega as tabelas para nao ficar nada "fantasma".
+  try
+    if dtmPrincipal.fdTableVenda.Active then
+      dtmPrincipal.fdTableVenda.Refresh;
+    if dtmPrincipal.fdTableItemVenda.Active then
+      dtmPrincipal.fdTableItemVenda.Refresh;
+    if dtmPrincipal.fdTableProduto.Active then
+      dtmPrincipal.fdTableProduto.Refresh;
+  except
+    // se nao conseguir atualizar, nao esconde o erro original
+  end;
+end;
+
+end.

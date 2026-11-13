@@ -1,0 +1,63 @@
+object dtmPrincipal: TdtmPrincipal
+  Height = 480
+  Width = 640
+  object dtsCliente: TDataSource
+    Left = 240
+    Top = 176
+  end
+  object fdConnection: TFDConnection
+    Params.Strings = (
+      'Database=projeto_pdv'
+      'User_Name=postgres'
+      'Password=123456'
+      'DriverID=PG')
+    Connected = True
+    Left = 128
+    Top = 88
+  end
+  object fdDriverLink: TFDPhysPgDriverLink
+    VendorLib = 'C:\Program Files\PostgreSQL\17\bin\libpq.dll'
+    Left = 296
+    Top = 96
+  end
+  object fdTableCliente: TFDTable
+    Connection = fdConnection
+    TableName = 'cliente'
+    Left = 416
+    Top = 144
+  end
+  object fdTableEndereco: TFDTable
+    Connection = fdConnection
+    TableName = 'endereco'
+    Left = 416
+    Top = 296
+  end
+  object fdTableProduto: TFDTable
+    IndexFieldNames = 'id'
+    Connection = fdConnection
+    ResourceOptions.AssignedValues = [rvEscapeExpand]
+    TableName = 'produto'
+    Left = 488
+    Top = 224
+    object fdTableProdutoid: TIntegerField
+      FieldName = 'id'
+      Origin = 'id'
+      ProviderFlags = [pfInUpdate, pfInWhere, pfInKey]
+    end
+    object fdTableProdutodescricao: TWideStringField
+      FieldName = 'descricao'
+      Origin = 'descricao'
+      Size = 100
+    end
+    object fdTableProdutopreco: TBCDField
+      FieldName = 'preco'
+      Origin = 'preco'
+      Precision = 10
+      Size = 2
+    end
+    object fdTableProdutoestoque: TIntegerField
+      FieldName = 'estoque'
+      Origin = 'estoque'
+    end
+  end
+end

@@ -1,0 +1,285 @@
+﻿unit TelaCliente;
+
+// VIEW: tela de clientes com Endereço Único (1 para 1).
+// A tela NAO tem SQL: ela so conhece o Controller.
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
+  System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
+  Vcl.StdCtrls, Vcl.ComCtrls, Vcl.ExtCtrls, Generics.Collections,
+  Model.Cliente, Model.Endereco, Controller.Cliente;
+
+type
+  TfrmTelaCliente = class(TForm)
+    pcCliente: TPageControl;
+    tsConsulta: TTabSheet;
+    tsCadastro: TTabSheet;
+    // --- aba Consulta ---
+    pnlConsulta: TPanel;
+    lblPesquisa: TLabel;
+    edtPesquisa: TEdit;
+    btnNovo: TButton;
+    btnEditar: TButton;
+    btnExcluir: TButton;
+    lvClientes: TListView;
+    // --- aba Cadastro ---
+    pnlRodapeCadastro: TPanel;
+    btnSalvar: TButton;
+    btnCancelar: TButton;
+    // --- Dados do Cliente (Master) ---
+    lblNome: TLabel;
+    lblCpf: TLabel;
+    lblTelefone: TLabel;
+    lblEmail: TLabel;
+    edtNome: TEdit;
+    edtCpf: TEdit;
+    edtTelefone: TEdit;
+    edtEmail: TEdit;
+    edtCep: TEdit;
+    lblCep: TLabel;
+    Label2: TLabel;
+    edtLogradouro: TEdit;
+    Label3: TLabel;
+    edtNumero: TEdit;
+    Label4: TLabel;
+    edtBairro: TEdit;
+    lblCidade: TLabel;
+    edtCidade: TEdit;
+    lblUf: TLabel;
+    edtUf: TEdit;
+    btnBuscarCep: TButton;
+    procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
+    procedure edtPesquisaChange(Sender: TObject);
+    procedure btnNovoClick(Sender: TObject);
+    procedure btnEditarClick(Sender: TObject);
+    procedure btnExcluirClick(Sender: TObject);
+    procedure lvClientesDblClick(Sender: TObject);
+    procedure btnSalvarClick(Sender: TObject);
+    procedure btnCancelarClick(Sender: TObject);
+  private
+    FController: TClienteController;
+    FClientes: TObjectList<TClienteModel>; // clientes mostrados na consulta
+    FCliente: TClienteModel;               // cliente em edicao (uma COPIA)
+
+    procedure CarregarClientes;
+    procedure TrocarCliente(novo: TClienteModel);
+    procedure PreencherTela;
+    procedure LerCamposCliente;
+    procedure LimparCampos;
+  end;
+
+implementation
+
+{$R *.dfm}
+
+uses
+  Factory.Cliente,
+  Utils.Formato;
+
+procedure TfrmTelaCliente.FormCreate(Sender: TObject);
+begin
+  FController := TClienteFactory.CriarController;
+  FCliente := TClienteModel.Create;
+  pcCliente.ActivePage := tsConsulta;
+  LimparCampos;
+  CarregarClientes;
+end;
+
+procedure TfrmTelaCliente.FormDestroy(Sender: TObject);
+begin
+  FCliente.Free;
+  FClientes.Free;
+  FController.Free;
+end;
+
+// =================== CONSULTA (lista de clientes) ===================
+
+procedure TfrmTelaCliente.CarregarClientes;
+begin
+  lvClientes.Items.BeginUpdate;
+  try
+    lvClientes.Items.Clear;
+    FreeAndNil(FClientes);
+
+    try
+      FClientes := FController.ObterClientes(edtPesquisa.Text);
+    except
+      on E: Exception do
+      begin
+        ShowMessage('Erro: ' + E.Message);
+        Exit;
+      end;
+    end;
+
+    for var cliente in FClientes do
+    begin
+      var item := lvClientes.Items.Add;
+      item.Caption := IntToStr(cliente.Id);
+      item.SubItems.Add(cliente.Nome);
+      item.SubItems.Add(FormatarCpf(cliente.Cpf));
+      item.SubItems.Add(cliente.Telefone);
+      item.SubItems.Add(cliente.Email);
+
+      // Se quiser exibir o CEP/Cidade na listagem também, pode adicionar aqui se houver colunas:
+      // if Assigned(cliente.Endereco) then
+      //   item.SubItems.Add(FormatarCep(cliente.Endereco.Cep));
+
+      item.Data := cliente; // guarda o objeto na linha da lista
+    end;
+  finally
+    lvClientes.Items.EndUpdate;
+  end;
+end;
+
+procedure TfrmTelaCliente.edtPesquisaChange(Sender: TObject);
+begin
+  CarregarClientes;
+end;
+
+// Troca o cliente em edicao (libera o antigo).
+procedure TfrmTelaCliente.TrocarCliente(novo: TClienteModel);
+begin
+  FCliente.Free;
+  FCliente := novo;
+end;
+
+procedure TfrmTelaCliente.LimparCampos;
+begin
+  edtNome.Clear;
+  edtCpf.Clear;
+  edtTelefone.Clear;
+  edtEmail.Clear;
+  edtCep.Clear;
+  edtLogradouro.Clear;
+  edtNumero.Clear;
+  edtBairro.Clear;
+  edtCidade.Clear;
+  edtUf.Clear;
+end;
+
+procedure TfrmTelaCliente.btnNovoClick(Sender: TObject);
+begin
+  TrocarCliente(TClienteModel.Create);
+  LimparCampos;
+  pcCliente.ActivePage := tsCadastro;
+  edtNome.SetFocus;
+end;
+
+procedure TfrmTelaCliente.btnEditarClick(Sender: TObject);
+begin
+  if (lvClientes.Selected = nil) or (lvClientes.Selected.Data = nil) then
+  begin
+    ShowMessage('Selecione um cliente na lista.');
+    Exit;
+  end;
+
+  // Trabalha numa COPIA: se o usuario cancelar, nada muda.
+  TrocarCliente(TClienteModel(lvClientes.Selected.Data).Clonar);
+  PreencherTela;
+  pcCliente.ActivePage := tsCadastro;
+  edtNome.SetFocus;
+end;
+
+procedure TfrmTelaCliente.lvClientesDblClick(Sender: TObject);
+begin
+  btnEditarClick(Sender); // duplo clique = Editar
+end;
+
+procedure TfrmTelaCliente.btnExcluirClick(Sender: TObject);
+begin
+  if (lvClientes.Selected = nil) or (lvClientes.Selected.Data = nil) then
+  begin
+    ShowMessage('Selecione um cliente na lista.');
+    Exit;
+  end;
+
+  if MessageDlg('Deseja realmente excluir este cliente e o endereço dele?',
+    mtConfirmation, [mbYes, mbNo], 0) <> mrYes then
+    Exit;
+
+  try
+    FController.Excluir(TClienteModel(lvClientes.Selected.Data).Id);
+  except
+    on E: Exception do
+    begin
+      ShowMessage(E.Message);
+      Exit;
+    end;
+  end;
+
+  CarregarClientes;
+end;
+
+// =================== CADASTRO: dados e endereço único ===================
+
+procedure TfrmTelaCliente.PreencherTela;
+begin
+  edtNome.Text := FCliente.Nome;
+  edtCpf.Text := FormatarCpf(FCliente.Cpf);
+  edtTelefone.Text := FCliente.Telefone;
+  edtEmail.Text := FCliente.Email;
+
+  // Preenche os campos do endereço único, se ele existir
+  if Assigned(FCliente.Endereco) then
+  begin
+    edtCep.Text := FormatarCep(FCliente.Endereco.Cep);
+    edtLogradouro.Text := FCliente.Endereco.Logradouro;
+    edtNumero.Text := FCliente.Endereco.Numero;
+    edtBairro.Text := FCliente.Endereco.Bairro;
+    edtCidade.Text := FCliente.Endereco.Cidade;
+    edtUf.Text := FCliente.Endereco.Uf;
+  end;
+end;
+
+procedure TfrmTelaCliente.LerCamposCliente;
+begin
+  FCliente.Nome := edtNome.Text;
+  FCliente.Cpf := edtCpf.Text;
+  FCliente.Telefone := edtTelefone.Text;
+  FCliente.Email := edtEmail.Text;
+
+  // Garante que o objeto de endereço existe na Model antes de jogar os dados
+  if not Assigned(FCliente.Endereco) then
+    FCliente.Endereco := TEnderecoModel.Create;
+
+  FCliente.Endereco.Cep := edtCep.Text;
+  FCliente.Endereco.Logradouro := edtLogradouro.Text;
+  FCliente.Endereco.Numero := edtNumero.Text;
+  FCliente.Endereco.Bairro := edtBairro.Text;
+  FCliente.Endereco.Cidade := edtCidade.Text;
+  FCliente.Endereco.Uf := edtUf.Text;
+end;
+
+procedure TfrmTelaCliente.btnSalvarClick(Sender: TObject);
+begin
+  LerCamposCliente;
+
+  try
+    // Grava o cliente e o seu endereço único em transação única
+    FController.Salvar(FCliente);
+  except
+    on E: Exception do
+    begin
+      ShowMessage(E.Message);
+      Exit;
+    end;
+  end;
+
+  ShowMessage('Cliente salvo com sucesso.');
+  TrocarCliente(TClienteModel.Create);
+  LimparCampos;
+  CarregarClientes;
+  pcCliente.ActivePage := tsConsulta;
+end;
+
+procedure TfrmTelaCliente.btnCancelarClick(Sender: TObject);
+begin
+  TrocarCliente(TClienteModel.Create);
+  LimparCampos;
+  pcCliente.ActivePage := tsConsulta;
+end;
+
+end.
